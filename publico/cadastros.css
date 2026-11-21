@@ -1,0 +1,12 @@
+.abrir-cadastro{display:inline-flex;align-items:center;gap:10px;border:0;padding:0;background:none;color:var(--destaque);font-weight:650;text-align:left;min-height:32px}
+.abrir-cadastro:hover{text-decoration:underline}.abrir-cadastro svg{width:16px;height:16px}
+.cabecalho-cadastro,.paginacao-cadastro{display:flex;align-items:center;gap:16px}.paginacao-cadastro{justify-content:space-between;margin-top:16px;color:var(--suave)}
+.dialogo-cadastro{width:780px;max-width:94vw;max-height:90vh;overflow:auto}.dialogo-cadastro label{display:flex;flex-direction:column;gap:6px;margin:12px 0}
+.dialogo-cadastro .duas-colunas{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:18px}.dialogo-cadastro input,.dialogo-cadastro select{width:100%;min-width:0}
+.dialogo-cadastro .acoes-dialogo{margin-top:24px}.erro-cadastro{color:#ffb3b9;line-height:1.5}.valor-divergente{background:#47391f;color:#ffe0a3}
+#linhasCadastro td{vertical-align:top}#linhasCadastro .acoes-linha{flex-wrap:nowrap}#linhasCadastro .etiqueta{display:inline-block;margin-top:6px}#pagina-cadastros .barra-filtros{align-items:flex-end;gap:20px;flex-wrap:wrap;margin-bottom:22px}
+#pagina-cadastros .barra-filtros>label:not(.checkbox){display:flex;flex-direction:column;gap:6px}#pagina-cadastros .barra-filtros .entrada-icone{flex-direction:row;min-width:300px}
+#pagina-cadastros .barra-filtros>label{margin:0}
+#pagina-cadastros .barra-filtros input:not([type=checkbox]),#pagina-cadastros .barra-filtros select{height:38px;margin:0}
+#pagina-cadastros .barra-filtros>.checkbox{min-height:38px}
+#dialogoAtrasosCliente{width:1080px}#dialogoAtrasosCliente table{white-space:normal;width:100%}#dialogoAtrasosCliente td{overflow-wrap:anywhere;max-width:280px}#dialogoAtrasosCliente h3{font-size:14px;margin:20px 0 12px}#dialogoAtrasosCliente .acoes-linha{justify-content:space-between}#registrosAtrasosCliente{max-height:300px}#resumoAtrasosCliente{margin-top:16px}#formularioAtrasosCliente{border-top:1px solid var(--borda);margin-top:20px}#localAtrasosCliente{line-height:1.6;overflow-wrap:anywhere}

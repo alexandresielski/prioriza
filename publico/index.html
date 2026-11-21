@@ -1,0 +1,188 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Prioriza | Planejamento de cargas</title>
+  <link rel="icon" href="/marca.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/estilos.css">
+  <meta name="mapa-base-url" content="https://tile.openstreetmap.org/{z}/{x}/{y}.png">
+  <link rel="stylesheet" href="/bibliotecas/leaflet-1.9.4/leaflet.css">
+  <link rel="stylesheet" href="/mapa.css">
+  <script defer src="/bibliotecas/leaflet-1.9.4/leaflet.js"></script>
+  <script defer src="/mapa.js"></script>
+  <script defer src="/icones.js"></script>
+  <script defer src="/processamento.js"></script>
+  <link rel="stylesheet" href="/processamento.css">
+  <script defer src="/aplicacao.js"></script>
+  <script defer src="/cenarios.js"></script>
+  <link rel="stylesheet" href="/cenarios.css">
+  <script defer src="/importacao-cargas.js"></script>
+  <script defer src="/cadastros.js"></script>
+  <link rel="stylesheet" href="/cadastros.css">
+</head>
+<body>
+  <header class="barra-superior">
+    <a class="marca" href="/" aria-label="Prioriza, início"><span class="marca-simbolo">P</span><span>prioriza<small>Planejamento de cargas</small></span></a>
+    <nav aria-label="Navegacao principal">
+      <button class="navegacao" data-pagina="simulacao"><i data-lucide="git-pull-request-arrow"></i>Simulação</button>
+      <button class="navegacao ativa" data-pagina="planejamento"><i data-lucide="calendar-range"></i>Cargas previstas<span id="totalPlanejamento" class="contador">0</span></button>
+      <button class="navegacao" data-pagina="cenarios"><i data-lucide="git-compare-arrows"></i>Cenários</button>
+      <button class="navegacao" data-pagina="frota"><i data-lucide="truck"></i>Composições<span id="totalFrota" class="contador">0</span></button>
+      <button class="navegacao" data-pagina="bases"><i data-lucide="database"></i>Bases de dados</button>
+      <button class="navegacao" data-pagina="metodo"><i data-lucide="sliders-horizontal"></i>Parâmetros</button>
+    </nav>
+    <div class="acoes-cabecalho"><button id="abrirImportacao" class="botao secundario"><i data-lucide="upload"></i>Importar bases</button></div>
+  </header>
+  <div class="area-principal">
+    <header class="cabecalho">
+      <div class="caminho">Operação <span>/</span> <strong id="nomePagina">Cargas previstas</strong></div>
+      <div class="ambiente"><span class="ponto"></span>Ambiente local<span class="etiqueta">SIDER</span></div>
+    </header>
+    <main>
+      <div id="mensagem" class="mensagem" role="status" hidden></div>
+      <section id="pagina-simulacao" class="pagina" hidden>
+        <div class="titulo-pagina"><div><span class="sobretitulo">APOIO A DECISÃO</span><h1>Qual composição atende melhor?</h1><p id="subtituloBase">Carregando posições da frota...</p></div><button id="carregarExemplo" class="botao secundario"><i data-lucide="flask-conical"></i>Carga de teste</button></div>
+        <div class="layout-simulacao">
+          <form id="formularioCarga" class="painel carga">
+            <div class="titulo-painel"><h2><i data-lucide="package"></i>Carga</h2><div class="acoes-linha"><button type="button" id="novaCargaFormulario" class="botao-icone" title="Nova carga" aria-label="Nova carga"><i data-lucide="plus"></i></button><button type="button" id="buscarHistorico" class="botao-icone" title="Selecionar carga do histórico" aria-label="Selecionar carga do histórico"><i data-lucide="history"></i></button></div></div>
+            <p id="contextoPlanejamento" class="contexto-planejamento" hidden></p>
+            <label>Cenário operacional<select id="cenario"><option value="DINAMICO">Dinamico (regra atual)</option><option value="PRAZO">Foco em prazo</option><option value="CUSTO">Foco em custo (deslocamento vazio)</option><option value="BALANCEADO">Balanceado</option></select></label>
+            <p class="texto-suave">Custo aproximado pela distância vazia, sem cálculo financeiro.</p>
+            <label>Identificação<input id="identificacao" maxlength="100" required></label>
+            <label class="checkbox"><input id="cargaObrigatoria" type="checkbox">Carga obrigatória</label>
+            <div class="grupo-local" data-campo="origem"><label>Local de coleta<div class="entrada-icone"><i data-lucide="map-pin"></i><input id="busca-origem" autocomplete="off" placeholder="Cliente ou município" aria-label="Local de coleta" role="combobox" aria-expanded="false" aria-controls="sugestoes-origem"></div></label><div id="sugestoes-origem" class="sugestoes" role="listbox" hidden></div><div id="detalhe-origem" class="detalhe-local">Nenhum local selecionado</div></div>
+            <div class="grupo-local" data-campo="destino"><label>Local de entrega <span class="opcional">opcional</span><div class="entrada-icone"><i data-lucide="flag"></i><input id="busca-destino" autocomplete="off" placeholder="Cliente ou município" aria-label="Local de entrega" role="combobox" aria-expanded="false" aria-controls="sugestoes-destino"></div></label><div id="sugestoes-destino" class="sugestoes" role="listbox" hidden></div><div id="detalhe-destino" class="detalhe-local">Nenhum local selecionado</div></div>
+            <label>Carregamento previsto<input id="coleta" type="datetime-local" min="0001-01-01T00:00" max="9999-12-31T23:59" required></label>
+            <div class="duas-colunas"><label>Peso (kg)<input id="peso" type="number" min="1" step="0.01" required></label><label>Frete (R$)<input id="frete" type="number" min="0" step="0.01" placeholder="Não informado"></label></div>
+            <details class="tempos" open><summary>Tempos de atendimento</summary>
+              <label class="checkbox"><input id="historico-carga" type="checkbox" checked>Média histórica de carga</label>
+              <label>Carga (h)<input id="tempoCarga" type="number" min="0" max="720" step="any" value="2" required></label><small id="fonte-carga" class="texto-suave"></small>
+              <label class="checkbox"><input id="historico-descarga" type="checkbox" checked>Média histórica de descarga</label>
+              <label>Descarga (h)<input id="tempoDescarga" type="number" min="0" max="720" step="any" value="2" required></label><small id="fonte-descarga" class="texto-suave"></small>
+              <p class="texto-suave">Fila e espera no cliente não estimadas.</p>
+            </details>
+            <div class="referencia"><label>Referência da simulação<input id="referencia" type="datetime-local" required></label></div>
+            <button type="submit" id="botaoSimular" class="botao primario largura-total"><i data-lucide="scan-line"></i>Avaliar composições</button>
+            <button type="button" id="salvarCargaPrevista" class="botao secundario largura-total"><i data-lucide="save"></i>Salvar carga prevista</button>
+          </form>
+          <div class="coluna-resultados">
+            <div class="faixa-indicadores"><div><span>Composições SIDER</span><strong id="indicadorFrota">--</strong></div><div><span>Viáveis</span><strong id="indicadorViaveis">--</strong></div><div><span>Menor deslocamento</span><strong id="indicadorDistancia">--</strong></div></div>
+            <section class="priorizacao"><div class="cabecalho-priorizacao"><h2><i data-lucide="focus"></i>Priorização dinamica</h2><span id="contextoPrazo" class="etiqueta">Aguardando carga</span></div><div id="pesos" class="pesos"><span class="texto-suave">Pesos definidos pelo contexto da coleta.</span></div></section>
+            <section class="resultado">
+              <div class="titulo-resultado"><h2>Composições sugeridas <span id="quantidadeResultados" class="contador">0</span></h2><button id="exportarResultado" class="botao-icone" title="Exportar resultado em CSV" aria-label="Exportar resultado em CSV" disabled><i data-lucide="download"></i></button></div>
+              <div id="resumoResultado" class="resumo-resultado"></div>
+              <div class="rolagem-tabela"><table class="tabela-ranking"><thead><tr><th>Composição</th><th>Deslocamento</th><th>Chegada / folga</th><th>Nota</th><th></th></tr></thead><tbody id="ranking"></tbody></table></div>
+              <div id="estadoVazio" class="estado-vazio"><i data-lucide="route"></i><h3>Nenhuma carga avaliada.</h3></div>
+              <details id="painelExcluidas" class="excluidas" hidden><summary id="tituloExcluidas">Composições não elegíveis</summary><div id="listaExcluidas"></div></details>
+            </section>
+            <section class="distribuicao"><div class="titulo-resultado"><h2>Posições e coleta</h2><div class="ferramentas-mapa"><label class="modo-mapa">Localização<select id="modoMapa"><option value="atual">Posição atual</option><option value="liberacao">Disponibilidade prevista</option></select></label><label class="checkbox"><input id="viaveisMapa" type="checkbox" disabled>Somente viáveis</label><button id="enquadrarMapa" class="botao-icone" title="Enquadrar todos os pontos" aria-label="Enquadrar todos os pontos"><i data-lucide="maximize"></i></button></div></div><p id="resumoMapa" class="texto-suave">Posições da última importação.</p><div id="mapaPosicoes" role="region" aria-label="Mapa de posições dos veículos e da coleta"></div><p id="situacaoMapa" class="texto-suave" role="status" aria-live="polite"></p><div class="legenda"><span><b class="bolinha viavel"></b>Viável na avaliação</span><span><b class="bolinha demais"></b><span id="rotuloPosicoesMapa">Posição importada</span></span><span><b class="bolinha coleta"></b>Coleta</span><span><i data-lucide="clock-3"></i>Liberação prevista</span></div><p class="texto-suave nota-mapa">Pontos importados, não rastreamento em tempo real. Linhas pontilhadas ligam pontos; não representam rotas rodoviárias.</p></section>
+            <div id="avisosResultado" class="avisos"></div>
+          </div>
+        </div>
+      </section>
+      <section id="pagina-planejamento" class="pagina">
+        <div class="titulo-pagina"><div><span class="sobretitulo">PLANEJAMENTO OPERACIONAL</span><h1>Cargas previstas</h1><p id="resumoPlanejamento">Carregando cargas...</p></div><div class="acoes-linha"><button id="atualizarPlanejamento" class="botao-icone" title="Atualizar cargas" aria-label="Atualizar cargas"><i data-lucide="refresh-cw"></i></button><button id="novaCargaPrevista" class="botao primario"><i data-lucide="plus"></i>Nova carga</button></div></div>
+        <div class="barra-filtros acoes-cargas-previstas"><a class="botao secundario" href="/api/planejamento/importacao/modelo" download><i data-lucide="download"></i>Modelo de cargas</a><button id="importarCargasPrevistas" class="botao secundario"><i data-lucide="file-up"></i>Importar cargas</button><input id="arquivoCargasPrevistas" type="file" accept=".xlsx" hidden><button id="cancelarReservasLote" class="botao secundario" disabled><i data-lucide="circle-x"></i>Cancelar reservas (<span id="quantidadeReservasLote">0</span>)</button></div>
+        <div class="filtros-planejamento">
+          <label class="entrada-icone"><i data-lucide="search"></i><input id="filtroPlanejamento" placeholder="Identificação, cliente ou município" aria-label="Buscar cargas previstas"></label>
+          <label>Situação<select id="situacaoPlanejamento"><option value="PENDENTE">Pendentes</option><option value="RESERVADA">Reservadas</option><option value="CANCELADA">Canceladas</option><option value="TODAS">Todas</option></select></label>
+          <label>Coleta de<input id="coletaPlanejamentoDe" type="date"></label><label>Até<input id="coletaPlanejamentoAte" type="date"></label>
+          <button id="limparFiltrosPlanejamento" class="botao-icone" title="Limpar filtros" aria-label="Limpar filtros"><i data-lucide="filter-x"></i></button>
+        </div>
+        <div class="rolagem-tabela"><table class="tabela-planejamento"><thead><tr><th><input id="selecionarReservasVisiveis" type="checkbox" aria-label="Selecionar todas as reservas visíveis" disabled></th><th>Carga / coleta</th><th>Origem</th><th>Destino</th><th>Peso / frete</th><th>Situação</th><th>Ações</th></tr></thead><tbody id="tabelaPlanejamento"></tbody></table></div>
+        <div id="vazioPlanejamento" class="estado-vazio" hidden><i data-lucide="calendar-plus"></i><h3>Nenhuma carga encontrada.</h3></div>
+      </section>
+      <section id="pagina-cenarios" class="pagina" hidden>
+        <div class="titulo-pagina"><div><span class="sobretitulo">COMPARAÇÃO E ALOCAÇÃO</span><h1>Cenários de planejamento</h1><p id="resumoCenarios" role="status"></p></div><div class="acoes-linha"><button id="novaComparacaoCenario" class="botao secundario"><i data-lucide="rotate-ccw"></i>Nova comparação</button><button id="atualizarCenarios" class="botao-icone" title="Atualizar cargas e cenários" aria-label="Atualizar cargas e cenários"><i data-lucide="refresh-cw"></i></button></div></div>
+        <div class="barra-cenarios"><label class="checkbox"><input id="selecionarTodasCenario" type="checkbox">Selecionar todas</label><span id="referenciaCenario" class="texto-suave"></span><label>Modo operacional<select id="modoOperacionalCenario"><option value="DINAMICO">Dinâmico</option><option value="PRAZO">Foco em prazo</option><option value="CUSTO">Foco em custo</option><option value="BALANCEADO">Balanceado</option></select></label><button id="simularCenario" class="botao primario" disabled><i data-lucide="git-compare-arrows"></i>Comparar cargas</button></div>
+        <p id="erroRecalculoCenario" class="avisos" role="alert" hidden></p>
+        <section id="resultadoCenario" hidden><div class="cabecalho-proposta"><span id="situacaoCenario" class="etiqueta"></span><div class="acoes-linha"><button id="recalcularEscolhas" class="botao secundario"><i data-lucide="refresh-cw"></i>Recalcular escolhas</button><button id="confirmarCenario" class="botao primario"><i data-lucide="check"></i>Confirmar reservas</button></div></div><div id="indicadoresCenario" class="indicadores-cenario"></div></section>
+        <div class="rolagem-tabela"><table class="tabela-cenarios"><colgroup><col class="col-selecao"><col class="col-carga"><col class="col-rota"><col class="col-composicao"><col class="col-nota"><col class="col-folga"><col class="col-situacao"></colgroup><thead><tr><th><span class="rotulo-selecao">Seleção</span></th><th>Carga / coleta</th><th>Origem / destino</th><th>Composição sugerida</th><th>Nota / distância</th><th>Folga</th><th>Situação</th></tr></thead><tbody id="cargasCenario"></tbody></table></div>
+      </section>
+      <section id="pagina-frota" class="pagina" hidden>
+        <div class="titulo-pagina"><div><span class="sobretitulo">RECURSOS DA OPERAÇÃO</span><h1>Composições SIDER</h1><p id="resumoFrota"></p></div><button id="recalcularPrevisoes" class="botao secundario"><i data-lucide="refresh-cw"></i>Recalcular previsões</button></div>
+        <div class="barra-filtros"><label class="entrada-icone"><i data-lucide="search"></i><input id="filtroFrota" placeholder="Buscar placa, cidade ou situação" aria-label="Buscar composições"></label><label class="checkbox"><input id="somenteVazios" type="checkbox">Somente vazios</label></div>
+        <p id="resumoPrevisoes" class="resumo-previsoes" role="status"></p>
+        <div class="rolagem-tabela"><table><thead><tr><th>Composição</th><th>Situação</th><th>Posição importada</th><th>Capacidade / eixos</th><th>Previsão de liberação</th><th></th></tr></thead><tbody id="tabelaFrota"></tbody></table></div>
+      </section>
+      <section id="pagina-bases" class="pagina" hidden><div class="titulo-pagina"><div><span class="sobretitulo">DADOS OPERACIONAIS</span><h1>Bases de dados</h1><p id="pastaBases"></p></div><button class="botao secundario" id="recarregarBases"><i data-lucide="refresh-cw"></i>Recarregar bases</button></div><div id="listaBases"></div></section>
+      <section id="pagina-cadastros" class="pagina" hidden>
+        <div class="titulo-pagina"><div class="cabecalho-cadastro"><button class="botao-icone" id="voltarBases" title="Voltar para bases" aria-label="Voltar para bases"><i data-lucide="arrow-left"></i></button><div><h1 id="tituloCadastro">Clientes e locais</h1><p id="resumoCadastro" role="status"></p></div></div><div class="acoes-linha"><button class="botao-icone" id="atualizarCadastro" title="Atualizar lista" aria-label="Atualizar lista"><i data-lucide="refresh-cw"></i></button><button class="botao primario" id="incluirCadastro"><i data-lucide="plus"></i>Incluir</button></div></div>
+        <div class="barra-filtros"><label class="entrada-icone"><i data-lucide="search"></i><input id="buscaCadastro" placeholder="Buscar" aria-label="Buscar cadastro"></label><label>Situação<select id="situacaoCadastro"><option value="ATIVOS">Ativos</option><option value="INATIVOS">Inativos</option><option value="TODOS">Todos</option></select></label><label class="checkbox"><input type="checkbox" id="revisaoCadastro">Revisão de importação</label></div>
+        <div class="rolagem-tabela"><table><thead id="cabecalhoTabelaCadastro"></thead><tbody id="linhasCadastro"></tbody></table></div>
+        <div class="paginacao-cadastro"><span id="paginaCadastro"></span><div class="acoes-linha"><button class="botao-icone" id="anteriorCadastro" title="Página anterior" aria-label="Página anterior"><i data-lucide="chevron-left"></i></button><button class="botao-icone" id="proximoCadastro" title="Próxima página" aria-label="Próxima página"><i data-lucide="chevron-right"></i></button></div></div>
+      </section>
+      <section id="pagina-metodo" class="pagina" hidden>
+        <div class="titulo-pagina"><div><span class="sobretitulo">PREMISSAS DA SIMULAÇÃO</span><h1>Parâmetros</h1><p>Ponderação contextual inspirada em atenção.</p></div></div>
+        <form id="formularioParametros" class="formulario-parametros">
+          <div class="duas-colunas"><label>Combustível (R$/litro)<input id="precoCombustivel" type="number" min="0.01" step="0.01" placeholder="Não informado"></label><label>Consumo médio (km/l)<input id="consumoMedio" type="number" min="0.01" step="0.01" placeholder="Não informado"></label></div>
+          <p class="texto-suave">Estimativa de combustível no deslocamento vazio. Sem pedágio ou manutenção. Consumo medio comum a frota.</p>
+          <div class="duas-colunas"><label>Velocidade média (km/h)<input id="velocidade" type="number" min="1" max="120" step="1" value="53" required></label><label>Acréscimo na distância (%)<input id="acrescimo" type="number" min="0" max="100" step="1" value="25" required></label></div>
+          <label>Idade máxima da posição (h)<input id="toleranciaPosicao" type="number" min="0" max="720" step="0.5" value="6" required></label>
+          <label class="checkbox"><input id="aceitarDesatualizadas" type="checkbox">Aceitar posições antigas nesta simulação</label>
+          <fieldset class="parametros-liberacao"><legend>Disponibilidade futura</legend>
+            <label class="checkbox"><input id="considerarOcupados" type="checkbox" checked>Estimar liberação dos veículos ocupados</label>
+            <div class="duas-colunas"><label>Carga configurada (h)<input id="tempoCargaRestante" type="number" min="0" max="720" step="0.5" value="2" required></label><label>Descarga configurada (h)<input id="tempoDescargaRestante" type="number" min="0" max="720" step="0.5" value="2" required></label></div>
+            <p class="texto-suave">Tempos restantes para atendimento iniciado e alternativa sem histórico suficiente. Sem fila e espera operacional. A previsão manual tem prioridade.</p>
+          </fieldset>
+          <button class="botao primario" type="submit"><i data-lucide="check"></i>Aplicar parâmetros</button>
+        </form>
+      </section>
+    </main>
+    <footer>Prioriza / TCC <span id="rodapeParametros">53 km/h · Haversine + 25%</span></footer>
+  </div>
+  <dialog id="dialogoLiberacao"><form id="formularioLiberacao"><div class="titulo-painel"><h2>Previsão de liberação</h2><button class="botao-icone" type="button" data-fechar="dialogoLiberacao" aria-label="Fechar"><i data-lucide="x"></i></button></div><p id="placaLiberacao" class="placa"></p><label>Disponível a partir de<input id="disponivelEm" type="datetime-local" required></label><div class="grupo-local" data-campo="liberacao"><label>Local de liberação<input id="busca-liberacao" placeholder="Cliente ou município" autocomplete="off" role="combobox" aria-expanded="false" aria-controls="sugestoes-liberacao"></label><div id="sugestoes-liberacao" class="sugestoes" role="listbox" hidden></div><div id="detalhe-liberacao" class="detalhe-local">Nenhum local selecionado</div></div><div class="acoes-dialogo"><button type="button" id="removerLiberacao" class="botao secundario">Remover previsão</button><button type="submit" class="botao primario"><i data-lucide="check"></i>Salvar previsão</button></div></form></dialog>
+  <dialog id="dialogoAgendamento"><form id="formularioAgendamento">
+    <div class="titulo-painel"><h2>Agendamento da operação atual</h2><button class="botao-icone" type="button" data-fechar="dialogoAgendamento" aria-label="Fechar"><i data-lucide="x"></i></button></div>
+    <p id="placaAgendamento" class="placa"></p><p id="operacaoAgendada" class="texto-suave"></p>
+    <label>Início agendado da carga atual<input id="cargaAgendadaEm" type="datetime-local"></label>
+    <label>Início agendado da descarga atual<input id="descargaAgendadaEm" type="datetime-local"></label>
+    <p id="prioridadeManual" class="avisos" hidden>Liberação manual ativa: substitui o cálculo por etapas, inclusive os agendamentos.</p>
+    <div class="acoes-dialogo"><button type="button" id="removerAgendamento" class="botao secundario">Remover agendamento</button><button type="submit" class="botao primario"><i data-lucide="check"></i>Aplicar horários</button></div>
+  </form></dialog>
+  <dialog id="dialogoCancelarCarga"><div class="titulo-painel"><h2>Cancelar carga prevista?</h2><button class="botao-icone" data-fechar="dialogoCancelarCarga" aria-label="Fechar"><i data-lucide="x"></i></button></div><p id="identificacaoCancelarCarga"></p><div class="acoes-dialogo"><button class="botao secundario" data-fechar="dialogoCancelarCarga">Voltar</button><button id="confirmarCancelamentoCarga" class="botao primario"><i data-lucide="circle-x"></i>Cancelar carga</button></div></dialog>
+  <dialog id="dialogoHistorico"><div class="titulo-painel"><h2>Cargas do histórico</h2><button class="botao-icone" data-fechar="dialogoHistorico" aria-label="Fechar"><i data-lucide="x"></i></button></div><input id="filtroCargas" placeholder="Número, coleta ou entrega" aria-label="Buscar cargas do histórico"><div id="listaCargas" class="lista-cargas"></div></dialog>
+  <dialog id="dialogoCoordenadas"><form id="formularioCoordenadas"><div class="titulo-painel"><h2>Coordenadas do local</h2><button type="button" class="botao-icone" data-fechar="dialogoCoordenadas" aria-label="Fechar"><i data-lucide="x"></i></button></div><label>Nome do local<input id="nomeCoordenadas" required></label><div class="duas-colunas"><label>Latitude<input id="latitudeManual" type="number" min="-90" max="90" step="any" required></label><label>Longitude<input id="longitudeManual" type="number" min="-180" max="180" step="any" required></label></div><button type="submit" class="botao primario"><i data-lucide="check"></i>Usar coordenadas</button></form></dialog>
+  <dialog id="dialogoDetalhes"><div class="titulo-painel"><h2>Detalhes da recomendação</h2><button class="botao-icone" data-fechar="dialogoDetalhes" aria-label="Fechar"><i data-lucide="x"></i></button></div><div id="conteudoDetalhes"></div></dialog>
+  <input id="arquivosBases" type="file" accept=".xlsx" multiple hidden>
+  <dialog id="dialogoImportacaoCargas" style="width:min(1100px,92vw);max-width:92vw"><div class="titulo-painel"><h2>Conferir cargas previstas</h2><button class="botao-icone" data-fechar="dialogoImportacaoCargas" aria-label="Fechar"><i data-lucide="x"></i></button></div><p id="resumoImportacaoCargas" role="status"></p><div id="previaImportacaoCargas" class="rolagem-tabela" style="max-height:55vh"></div><div class="acoes-dialogo"><button class="botao secundario" data-fechar="dialogoImportacaoCargas">Voltar</button><button id="confirmarImportacaoCargas" class="botao primario"><i data-lucide="sparkles"></i>Importar e sugerir placas</button></div></dialog>
+  <dialog id="dialogoCadastro" class="dialogo-cadastro"><form id="formularioCadastro"><div class="titulo-painel"><h2 id="tituloFormularioCadastro"></h2><button type="button" class="botao-icone" data-fechar="dialogoCadastro" aria-label="Fechar"><i data-lucide="x"></i></button></div><div id="camposCadastro"></div><p id="erroCadastro" class="erro-cadastro" role="alert" hidden></p><div class="acoes-dialogo"><button type="button" class="botao secundario" data-fechar="dialogoCadastro">Cancelar</button><button class="botao primario" type="submit"><i data-lucide="save"></i>Salvar</button></div></form></dialog>
+  <dialog id="dialogoRevisaoCadastro" class="dialogo-cadastro"><div class="titulo-painel"><h2>Revisar dados da importação</h2><button class="botao-icone" data-fechar="dialogoRevisaoCadastro" aria-label="Fechar"><i data-lucide="x"></i></button></div><div class="rolagem-tabela" id="comparacaoCadastro"></div><p id="erroRevisaoCadastro" class="erro-cadastro" role="alert" hidden></p><div class="acoes-dialogo"><button class="botao secundario" id="manterCadastro"><i data-lucide="shield-check"></i>Manter cadastro atual</button><button class="botao primario" id="aplicarImportacaoCadastro"><i data-lucide="check"></i>Aplicar dados importados</button></div></dialog>
+  <dialog id="dialogoProcessamento" aria-labelledby="tituloProcessamento" aria-describedby="etapaProcessamento">
+    <div class="cabecalho-processamento"><i data-lucide="loader-circle" class="icone-processando" aria-hidden="true"></i><div><h2 id="tituloProcessamento">Importando bases</h2><p id="arquivoProcessamento"></p></div></div>
+    <p id="etapaProcessamento" role="status" aria-live="polite"></p>
+    <div class="trilho-processamento" role="progressbar" aria-label="Importação em andamento" aria-valuetext="Processando"><span></span></div>
+    <div class="tempos-processamento"><div><span>Tempo decorrido</span><strong id="decorridoProcessamento" role="timer" aria-live="off">00:00</strong></div><div><span>Restante estimado</span><strong id="restanteProcessamento">Sem estimativa</strong></div></div>
+    <p id="detalheProcessamento" class="texto-suave">Aguardando resposta do servidor.</p>
+  </dialog>
+  <dialog id="dialogoEdicaoCarga" aria-labelledby="tituloEdicaoCarga"><form id="formularioEdicaoCarga">
+    <div class="titulo-painel"><h2 id="tituloEdicaoCarga">Editar carga prevista</h2><button type="button" class="botao-icone" data-fechar="dialogoEdicaoCarga" aria-label="Fechar"><i data-lucide="x"></i></button></div>
+    <div class="duas-colunas"><label>Identificação<input id="edicaoIdentificacao" maxlength="100" required></label><label>Coleta<input id="edicaoColeta" type="datetime-local" required></label></div>
+    <div class="grupo-local" data-campo="edicao-origem"><label>Origem<input id="busca-edicao-origem" required autocomplete="off" role="combobox" aria-expanded="false" aria-controls="sugestoes-edicao-origem"></label><div id="sugestoes-edicao-origem" class="sugestoes" role="listbox" hidden></div><div id="detalhe-edicao-origem" class="detalhe-local"></div></div>
+    <div class="grupo-local" data-campo="edicao-destino"><label>Destino<input id="busca-edicao-destino" required autocomplete="off" role="combobox" aria-expanded="false" aria-controls="sugestoes-edicao-destino"></label><div id="sugestoes-edicao-destino" class="sugestoes" role="listbox" hidden></div><div id="detalhe-edicao-destino" class="detalhe-local"></div></div>
+    <div class="duas-colunas"><label>Peso (toneladas)<input id="edicaoPeso" type="number" min="0.001" step="any" required></label><label>Frete (R$)<input id="edicaoFrete" type="number" min="0" step="any"></label></div>
+    <div class="duas-colunas"><div><label>Tempo de carga (horas)<input id="edicaoTempoCarga" type="number" min="0" max="720" step="any" required></label><label class="opcao-edicao"><input id="edicaoHistoricoCarga" type="checkbox">Usar histórico / parâmetro</label></div><div><label>Tempo de descarga (horas)<input id="edicaoTempoDescarga" type="number" min="0" max="720" step="any" required></label><label class="opcao-edicao"><input id="edicaoHistoricoDescarga" type="checkbox">Usar histórico / parâmetro</label></div></div>
+    <label class="opcao-edicao"><input id="edicaoObrigatoria" type="checkbox">Carga obrigatória</label>
+    <p id="erroEdicaoCarga" role="alert" hidden></p>
+    <div class="acoes-dialogo"><button type="button" class="botao secundario" data-fechar="dialogoEdicaoCarga">Cancelar</button><button id="salvarEdicaoCarga" type="submit" class="botao primario"><i data-lucide="save"></i>Salvar alterações</button></div>
+  </form></dialog>
+  <dialog id="dialogoReservaPlanejada" aria-labelledby="tituloReservaPlanejada"><div class="titulo-painel"><h2 id="tituloReservaPlanejada">Reserva</h2><button type="button" class="botao-icone" data-fechar="dialogoReservaPlanejada" aria-label="Fechar"><i data-lucide="x"></i></button></div><div id="detalhesReservaPlanejada"></div><div class="acoes-dialogo"><button type="button" class="botao secundario" data-fechar="dialogoReservaPlanejada">Fechar</button><button type="button" id="cancelarReservaPlanejada" class="botao secundario"><i data-lucide="circle-x"></i>Cancelar reserva</button></div></dialog>
+  <dialog id="dialogoCancelarReserva" aria-labelledby="tituloCancelarReserva"><h2 id="tituloCancelarReserva">Cancelar reserva desta carga?</h2><p id="descricaoCancelarReserva"></p><p id="erroCancelamentoReserva" role="alert" hidden></p><div class="acoes-dialogo"><button type="button" class="botao secundario" data-fechar="dialogoCancelarReserva">Voltar</button><button type="button" id="confirmarCancelamentoReserva" class="botao primario"><i data-lucide="circle-x"></i>Confirmar cancelamento</button></div></dialog>
+  <dialog id="dialogoCancelarReservasLote" aria-labelledby="tituloCancelarReservasLote"><h2 id="tituloCancelarReservasLote">Cancelar reservas selecionadas?</h2><p>Somente as reservas abaixo serão canceladas. As cargas permanecerão cadastradas.</p><ul id="listaCancelamentoReservas" style="max-height:45vh;overflow:auto"></ul><p id="erroCancelamentoLote" role="alert" hidden></p><div class="acoes-dialogo"><button type="button" class="botao secundario" data-fechar="dialogoCancelarReservasLote">Voltar</button><button type="button" id="confirmarCancelamentoLote" class="botao primario"><i data-lucide="circle-x"></i>Confirmar cancelamento</button></div></dialog>
+  <dialog id="dialogoAtrasosCliente" class="dialogo-cadastro" aria-labelledby="tituloAtrasosCliente">
+    <div class="titulo-painel"><h2 id="tituloAtrasosCliente">Histórico de atrasos</h2><button type="button" class="botao-icone" data-fechar="dialogoAtrasosCliente" aria-label="Fechar"><i data-lucide="x"></i></button></div>
+    <p id="localAtrasosCliente"></p><p id="situacaoAtrasosCliente" role="status"></p>
+    <div id="resumoAtrasosCliente" class="rolagem-tabela"></div>
+    <div class="acoes-linha"><h3>Ocorrências</h3><button id="atualizarAtrasosCliente" type="button" class="botao-icone" title="Atualizar histórico" aria-label="Atualizar histórico"><i data-lucide="refresh-cw"></i></button></div>
+    <div id="registrosAtrasosCliente" class="rolagem-tabela"></div>
+    <form id="formularioAtrasosCliente"><h3>Nova ocorrência</h3>
+      <label>Etapa<select id="etapaAtrasosCliente" required><option value="CARGA">Carga</option><option value="DESCARGA">Descarga</option></select></label>
+      <div class="duas-colunas"><label>Início previsto<input id="previstoAtrasosCliente" type="datetime-local" min="0001-01-01T00:00" max="9999-12-31T23:59" required></label><label>Início executado<input id="executadoAtrasosCliente" type="datetime-local" min="0001-01-01T00:00" max="9999-12-31T23:59" required></label></div>
+      <label>Referência da ocorrência<input id="observacaoAtrasosCliente" maxlength="500" placeholder="Documento ou anotação operacional"></label>
+      <div class="acoes-dialogo"><button id="registrarAtrasosCliente" type="submit" class="botao primario"><i data-lucide="save"></i>Registrar ocorrência</button></div>
+    </form>
+    <p id="erroAtrasosCliente" class="erro-cadastro" role="alert" hidden></p>
+  </dialog>
+</body>
+</html>
