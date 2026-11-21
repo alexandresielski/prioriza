@@ -1,0 +1,9 @@
+{
+  "name": "prioriza-validacao-interface",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Testes de interface com dados ficticios e gravacoes interceptadas",
+  "scripts": { "test": "node testes/interface.cjs", "auditar": "node testes/auditar-publicacao.cjs" },
+  "devDependencies": { "playwright": "1.62.1" },
+  "engines": { "node": ">=20" }
+}

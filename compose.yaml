@@ -1,0 +1,18 @@
+services:
+  banco:
+    image: postgres:18
+    environment:
+      POSTGRES_DB: prioriza_demo
+      POSTGRES_USER: ${BANCO_USUARIO:-prioriza_demo}
+      POSTGRES_PASSWORD: ${BANCO_SENHA:?Preencha BANCO_SENHA no arquivo .env}
+    ports:
+      - "127.0.0.1:55433:5432"
+    volumes:
+      - dados-demonstracao:/var/lib/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d prioriza_demo"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+volumes:
+  dados-demonstracao:
